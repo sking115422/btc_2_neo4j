@@ -1,0 +1,7 @@
+blocks
+result
+venv
+.DS_Store
+checkpoint.json
+logs
+.ipynb_checkpoints
