@@ -26,8 +26,13 @@ I obtained the files need by starting my own validation node for Bitcoin using B
 4. Create a json file called "checkpoint.json" with the following content:
 
 {
-    "dat_file":0,
-    "block_num":0
+
+    "dat_file": 0,
+
+    "iter": 0,
+
+    "block_num": 0
+
 }
 
 5. Create and activate a virtual enviroment
@@ -62,7 +67,11 @@ NOTE: If the import terminates early due to an error or any other reason the pro
 
 {
 
-"dat_file": 0,
+    "dat_file": 0,
+
+    "iter": 0,
+
+    "block_num": 0
 
 }
 

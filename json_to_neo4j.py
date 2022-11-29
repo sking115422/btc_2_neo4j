@@ -250,7 +250,7 @@ def createChainRel(sess, prevBlkHash, n4j_blk_id):
             a.hash = "{0}"
             AND
             id(b) = {1}
-            CREATE (a)-[r:chain]->(b)
+            MERGE (a)-[r:chain]->(b)
             RETURN type(r)
             """
             
@@ -272,7 +272,7 @@ def createRewardRel(sess, n4j_blk_id, n4j_cb_id):
             id(a) = {0}
             AND
             id(b) = {1}
-            CREATE (a)-[r:reward]->(b)
+            MERGE (a)-[r:reward]->(b)
             RETURN type(r)
             """
             
@@ -294,7 +294,7 @@ def createSeedsRel(sess, n4j_cb_id, n4j_tx_id):
             id(a) = {0} 
             AND
             id(b) = {1}
-            CREATE (a)-[r:seeds]->(b)
+            MERGE (a)-[r:seeds]->(b)
             RETURN type(r)
             """
             
@@ -316,7 +316,7 @@ def createIncludesRel(sess, n4j_tx_id, n4j_blk_id):
             id(a) = {0}
             AND
             id(b) = {1}
-            CREATE (a)-[r:includes]->(b)
+            MERGE (a)-[r:includes]->(b)
             RETURN type(r)
             """
             
@@ -338,7 +338,7 @@ def createOutRel(sess, n4j_tx_id, n4j_out_id):
             id(a) = {0}
             AND
             id(b) = {1}
-            CREATE (a)-[r:out]->(b)
+            MERGE (a)-[r:out]->(b)
             RETURN type(r)
             """
             
@@ -360,7 +360,7 @@ def createLockedRel(sess, n4j_out_id, address):
             id(a) = {0}
             AND
             b.address = "{1}"
-            CREATE (a)-[r:locked]->(b)
+            MERGE (a)-[r:locked]->(b)
             RETURN type(r)
             """
             
@@ -384,7 +384,7 @@ def createUnlockRel(sess, vin, n4j_tx_id):
     cmd2 = "MATCH (c:tx) WHERE id(c) = {0} "
     cmd2 = cmd2.format(str(n4j_tx_id)) 
         
-    cmd3 = "CREATE (b) - [r:unlock {scriptSig: '" + scriptSig_ + "'}] -> (c) RETURN r"
+    cmd3 = "MERGE (b) - [r:unlock {scriptSig: '" + scriptSig_ + "'}] -> (c) RETURN r"
         
     cmd4 = cmd1 + cmd2 + cmd3
     
@@ -461,12 +461,13 @@ sess = dbc.session(database="neo4j")
 
 
 # Return lists of the DAT file jsons
-block_list = sorted(os.listdir("./result/"))
+dat_list = sorted(os.listdir("./result/"))
 
 # Import checkpoint values 
 cp = open("./checkpoint.json")
 cpjs = json.load(cp)
 df_start = cpjs["dat_file"]
+iter_start = cpjs["iter"]
 bn_start = cpjs["block_num"]
 
 # If checkpoint.json file is not 0, 0 delete last partial imported block
@@ -479,105 +480,139 @@ if df_start != 0 or bn_start != 0:
 
 # Try until some error happens
 try:
+    
     logger.debug("")
     logger.debug("STARTING IMPORT TO NEO4J")
     logger.debug("***********************************")
-
-    # Iterating through each pair of jsons for each DAT file
+    
+    # Iterating through each DAT file
     # testing loop below
     # for a in range(0, 1):
-    for a in range(df_start, len(block_list)):
+    for a in range(df_start, len(dat_list)):
         
         # Reset bn_start each time DAT file finished
         if a != df_start:
             bn_start = 0
+            iter_start = 0        
         
         df_start = a
         
-        
         logger.debug("")
-        logger.debug("loading > ./result/" + block_list[a])
-        with open("./result/" + block_list[a]) as bl:
+        logger.debug("loading > ./result/" + dat_list[a])
+        with open("./result/" + dat_list[a]) as bl:
             bl_json = json.load(bl)
         logger.debug("")
+        
+        # Iterating through the DAT file twice
+        # First time (0) creates the nodes
+        # Second time (1) creates the relationships
+        for t in range (iter_start, 2):
+            
+            # Reset bn_start each time iteration is finished
+            if t != iter_start:
+                bn_start = 0    
+            
+            iter_start = t
 
-        #Iterate through all blocks in dat file
-        # testing loops below
-        # for i in range(len(bl_json)-5, len(bl_json)):    
-        # for i in range(0, 10):
-        for i in range(bn_start, len(bl_json)):
-            
-            bn_start = i
-            
-            start = time.time()
-            
-            blk = bl_json[i]
-            n4j_blk_id = createBlockNode(sess, blk, df_start, bn_start)
-            tx_list = blk["tx"]
-            
-            # If block is the not the first block create chain relationship
-            prevBlkHash = str(blk["previousblockhash"])
-            if prevBlkHash != "0000000000000000000000000000000000000000000000000000000000000000":
-                createChainRel(sess, prevBlkHash, n4j_blk_id)
-            
-            #Iterating through each transaction associated with the current block
-            for j in range(0, len(tx_list)):
-            # for j in range(0,1):
+            #Iterate through all blocks in dat file
+            # testing loops below
+            # for i in range(len(bl_json)-5, len(bl_json)):    
+            # for i in range(0, 10):
+            for i in range(bn_start, len(bl_json)):
                 
-                tx_data = tx_list[j]
+                bn_start = i
                 
-                # Creating transaction node and includes relationship
-                n4j_tx_id = createTxNode(sess, tx_data, df_start, bn_start)
-                createIncludesRel(sess, n4j_tx_id, n4j_blk_id)
+                start = time.time()
                 
-                # Iterate through vin list in transaction
-                for each in tx_data["vin"]:
-                    
-                    # If it is the first transaction create coinbase node, reward relationship, and seeds relationship
-                    txid_in = str(each["txid"])
-                    if txid_in == "0000000000000000000000000000000000000000000000000000000000000000":
-                        n4j_cb_id = createCoinbaseNode(sess, tx_data, df_start, bn_start)
-                        createRewardRel(sess, n4j_blk_id, n4j_cb_id)
-                        createSeedsRel(sess, n4j_cb_id, n4j_tx_id)
-                        exit
-                        
-                    # Otherwise create the unlock relationship
-                    else:
-                        createUnlockRel(sess, each, n4j_tx_id)
+                blk = bl_json[i]
+                tx_list = blk["tx"]
                 
-                # Iterate through outputs for each transaction
-                outputs = tx_data["vout"]
-                for z in range(0, len(outputs)):
-                    
-                    # Creating output node and out relationship
-                    n4j_out_id = createOutputNode(sess, outputs[z], z, df_start, bn_start)
-                    createOutRel(sess, n4j_tx_id, n4j_out_id)
-                    
-                    # Create creating address node if it does not exist and locked relationship to an address (might be address just created might not)
-                    try:
-                        address = str(outputs[z]["scriptPubKey"]["address"])
-                    except:
-                        address = "N/A"
-                        
-                    if address != "N/A":
-                        n4j_addr_id = createAddressNode(sess, address, df_start, bn_start)
-                        createLockedRel(sess, n4j_out_id, address)
-                
-            end = time.time()
-            
-            diff = end - start
-            
-            logger.debug("")
-            logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | import complete > execution time : " + str(diff))
-            logger.debug("") 
+                n4j_blk_id = None
+                if t == 0:
+                    n4j_blk_id = createBlockNode(sess, blk, df_start, bn_start)
 
+                if t == 1:
+                    # If block is the not the first block create chain relationship
+                    prevBlkHash = str(blk["previousblockhash"])
+                    if prevBlkHash != "0000000000000000000000000000000000000000000000000000000000000000":
+                        createChainRel(sess, prevBlkHash, n4j_blk_id)
+                
+                #Iterating through each transaction associated with the current block
+                for j in range(0, len(tx_list)):
+                # for j in range(0,1):
+                    
+                    tx_data = tx_list[j]
+                    
+                    # Creating transaction node 
+                    n4j_tx_id = None
+                    if t == 0:
+                        n4j_tx_id = createTxNode(sess, tx_data, df_start, bn_start)
+                        
+                    # Creating includes relationship
+                    if t == 1:
+                        createIncludesRel(sess, n4j_tx_id, n4j_blk_id)
+                    
+                    # Iterate through vin list in transaction
+                    for each in tx_data["vin"]:
+                        
+                        # If it is the first transaction create coinbase node, reward relationship, and seeds relationship
+                        txid_in = str(each["txid"])
+                        if txid_in == "0000000000000000000000000000000000000000000000000000000000000000":
+                            if t == 0:
+                                n4j_cb_id = createCoinbaseNode(sess, tx_data, df_start, bn_start)
+                            if t == 1:
+                                createRewardRel(sess, n4j_blk_id, n4j_cb_id)
+                                createSeedsRel(sess, n4j_cb_id, n4j_tx_id)
+                            exit
+                            
+                        # Otherwise create the unlock relationship
+                        else:
+                            if t == 1:
+                                createUnlockRel(sess, each, n4j_tx_id)
+                    
+                    # Iterate through outputs for each transaction
+                    outputs = tx_data["vout"]
+                    for z in range(0, len(outputs)):
+                        
+                        # Creating output node 
+                        n4j_out_id = None
+                        if t == 0:
+                            n4j_out_id = createOutputNode(sess, outputs[z], z, df_start, bn_start)
+                        # Creating out relationship
+                        if t == 1:
+                            createOutRel(sess, n4j_tx_id, n4j_out_id)
+                        
+                        # Create creating address node if it does not exist and locked relationship to an address (might be address just created might not)
+                        try:
+                            address = str(outputs[z]["scriptPubKey"]["address"])
+                        except:
+                            address = "N/A"
+                            
+                        if address != "N/A":
+                            n4j_addr_id = None
+                            if t == 0:
+                                n4j_addr_id = createAddressNode(sess, address, df_start, bn_start)
+                            if t == 1:
+                                createLockedRel(sess, n4j_out_id, address)
+                    
+                end = time.time()
+                
+                diff = end - start
+                
+                if t == 0:
+                    logger.debug("")
+                    logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | node import complete > execution time : " + str(diff))
+                    logger.debug("") 
+                if t == 1: 
+                    logger.debug("")
+                    logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | relationships import complete > execution time : " + str(diff))
+                    logger.debug("") 
 
     # Creating indexes
     createIndex(sess, "block", "hash")
     createIndex(sess, "tx", "txid")
     createIndex(sess, "address", "address")
-
-
+    
     logger.debug("")
     logger.debug("***********************************")
     logger.debug("FINISHED IMPORT TO NEO4J")
@@ -585,16 +620,22 @@ try:
     # Closing session
     sess.close()
 
+
 # If error happens save progress
 except:
     
     cpjs["dat_file"] = df_start
+    cpjs["iter"] = iter_start
     cpjs["block_num"] = bn_start
     
     tmp = json.dumps(cpjs, indent=4)
     
     with open("checkpoint.json", "w") as outfile:
         outfile.write(tmp)
+    
+    logger.debug("")
+    logger.debug(traceback.format_exc())
+    logger.debug("")
     
     print(traceback.format_exc())
         

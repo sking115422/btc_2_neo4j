@@ -24,6 +24,7 @@ for each in dirs:
 # Creating dictionary of initial values
 cp = {
     "dat_file":0,
+    "iter": 0,
     "block_num":0
 }
 
