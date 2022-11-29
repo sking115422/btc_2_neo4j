@@ -1,4 +1,4 @@
-# BTC 2 NEO4J FASTER
+# BTC 2 NEO4J BETTER
 
 This package contains both a parser for blk.dat files and an import script for dumping the json into Neo4J graph database.
 
@@ -15,7 +15,8 @@ I obtained the files need by starting my own validation node for Bitcoin using B
 
 ### Auto Setup
 
-1. Run the setup.py script to setup
+1. *** MUST have PowerShell version 7.0 or higher in windows to run setup.py
+2. Run the setup.py script to setup
 
 ### Manual Setup
 
@@ -62,7 +63,6 @@ NOTE: If the import terminates early due to an error or any other reason the pro
 {
 
 "dat_file": 0,
-
 
 }
 
