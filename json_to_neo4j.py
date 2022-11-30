@@ -240,7 +240,7 @@ def createAddressNode(sess, address, df_start, bn_start):
         return node_id
             
 
-def createChainRel(sess, prevBlkHash, n4j_blk_id):
+def createChainRel(sess, prevBlkHash, hash_):
 
     cmd1 = """ 
             MATCH
@@ -249,12 +249,12 @@ def createChainRel(sess, prevBlkHash, n4j_blk_id):
             WHERE 
             a.hash = "{0}"
             AND
-            id(b) = {1}
+            b.hash = "{1}"
             MERGE (a)-[r:chain]->(b)
             RETURN type(r)
             """
             
-    cmd1 = cmd1.format(prevBlkHash, str(n4j_blk_id))
+    cmd1 = cmd1.format(prevBlkHash, hash_)
     
     if logging_:
         logger.debug(getTimeStamp() + " | creating relationship : chain")
@@ -350,21 +350,21 @@ def createOutRel(sess, n4j_tx_id, n4j_out_id):
     sess.run(cmd1)
 
 
-def createLockedRel(sess, n4j_out_id, address):
+def createLockedRel(sess, scriptPK_hex, address):
 
     cmd1 = """ 
             MATCH
             (a:output),
             (b:address)
             WHERE 
-            id(a) = {0}
+            a.scriptPK_hex = "{0}"
             AND
             b.address = "{1}"
             MERGE (a)-[r:locked]->(b)
             RETURN type(r)
             """
             
-    cmd1 = cmd1.format(str(n4j_out_id), address)
+    cmd1 = cmd1.format(scriptPK_hex, address)
     
     if logging_:
         logger.debug(getTimeStamp() + " | creating relationship : locked")
@@ -372,17 +372,22 @@ def createLockedRel(sess, n4j_out_id, address):
     sess.run(cmd1)
 
 
-def createUnlockRel(sess, vin, n4j_tx_id):
+def createUnlockRel(sess, vin, tx_data):
     
+    # Input transaction id
     txid_in = str(vin["txid"])
+    # Output number in the input transaction
     vout = str(vin["vout"])
     scriptSig_ = str(vin["scriptSig_hex"])
+    
+    # Current tranaction id
+    txid = str(tx_data["txid"])
 
     cmd1 = "MATCH (a:tx) - [:out]-> (b:output) WHERE a.txid = '{0}' AND b.vout = '{1}' "
-    cmd1 = cmd1.format(txid_in, vout, str(n4j_tx_id))
+    cmd1 = cmd1.format(txid_in, vout, txid)
     
     cmd2 = "MATCH (c:tx) WHERE id(c) = {0} "
-    cmd2 = cmd2.format(str(n4j_tx_id)) 
+    cmd2 = cmd2.format(txid) 
         
     cmd3 = "MERGE (b) - [r:unlock {scriptSig: '" + scriptSig_ + "'}] -> (c) RETURN r"
         
@@ -504,8 +509,8 @@ try:
         logger.debug("")
         
         # Iterating through the DAT file twice
-        # First time (0) creates the nodes
-        # Second time (1) creates the relationships
+        # First time (0) creates the nodes and some relationships
+        # Second time (1) creates the backward linked relationships
         for t in range (iter_start, 2):
             
             # Reset bn_start each time iteration is finished
@@ -527,15 +532,17 @@ try:
                 blk = bl_json[i]
                 tx_list = blk["tx"]
                 
+                prevBlkHash = str(blk["previousblockhash"])
+                hash_ = str(blk["hash"])
+                
                 n4j_blk_id = None
                 if t == 0:
                     n4j_blk_id = createBlockNode(sess, blk, df_start, bn_start)
 
                 if t == 1:
                     # If block is the not the first block create chain relationship
-                    prevBlkHash = str(blk["previousblockhash"])
                     if prevBlkHash != "0000000000000000000000000000000000000000000000000000000000000000":
-                        createChainRel(sess, prevBlkHash, n4j_blk_id)
+                        createChainRel(sess, prevBlkHash, hash_)
                 
                 #Iterating through each transaction associated with the current block
                 for j in range(0, len(tx_list)):
@@ -543,13 +550,10 @@ try:
                     
                     tx_data = tx_list[j]
                     
-                    # Creating transaction node 
+                    # Creating transaction node and includes relationship
                     n4j_tx_id = None
                     if t == 0:
                         n4j_tx_id = createTxNode(sess, tx_data, df_start, bn_start)
-                        
-                    # Creating includes relationship
-                    if t == 1:
                         createIncludesRel(sess, n4j_tx_id, n4j_blk_id)
                     
                     # Iterate through vin list in transaction
@@ -560,7 +564,6 @@ try:
                         if txid_in == "0000000000000000000000000000000000000000000000000000000000000000":
                             if t == 0:
                                 n4j_cb_id = createCoinbaseNode(sess, tx_data, df_start, bn_start)
-                            if t == 1:
                                 createRewardRel(sess, n4j_blk_id, n4j_cb_id)
                                 createSeedsRel(sess, n4j_cb_id, n4j_tx_id)
                             exit
@@ -568,7 +571,7 @@ try:
                         # Otherwise create the unlock relationship
                         else:
                             if t == 1:
-                                createUnlockRel(sess, each, n4j_tx_id)
+                                createUnlockRel(sess, each, tx_data)
                     
                     # Iterate through outputs for each transaction
                     outputs = tx_data["vout"]
@@ -578,22 +581,22 @@ try:
                         n4j_out_id = None
                         if t == 0:
                             n4j_out_id = createOutputNode(sess, outputs[z], z, df_start, bn_start)
-                        # Creating out relationship
-                        if t == 1:
                             createOutRel(sess, n4j_tx_id, n4j_out_id)
                         
-                        # Create creating address node if it does not exist and locked relationship to an address (might be address just created might not)
+                        scriptPK_hex = str(outputs[z]["scriptPubKey"]["hex"])
+                        
                         try:
                             address = str(outputs[z]["scriptPubKey"]["address"])
                         except:
                             address = "N/A"
                             
+                        # Create address node if it does not exist and locked relationship to an address (might be address just created might not)    
                         if address != "N/A":
                             n4j_addr_id = None
                             if t == 0:
                                 n4j_addr_id = createAddressNode(sess, address, df_start, bn_start)
                             if t == 1:
-                                createLockedRel(sess, n4j_out_id, address)
+                                createLockedRel(sess, scriptPK_hex, address)
                     
                 end = time.time()
                 

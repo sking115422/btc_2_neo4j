@@ -5,3 +5,4 @@ venv
 checkpoint.json
 logs
 .ipynb_checkpoints
+*.json
