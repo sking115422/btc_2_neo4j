@@ -642,7 +642,9 @@ except:
     
     with open("checkpoint.json", "w") as outfile:
         outfile.write(tmp)
-    
+        
+    logger.debug("")
+    logger.debug(getTimeStamp() + " IMPORT EXITED EARLY > Dat file : " + str(df_start) + " > iter : " + str(iter_start) + " > blk num : " + str(bn_start))
     logger.debug("")
     logger.debug(traceback.format_exc())
     logger.debug("")
