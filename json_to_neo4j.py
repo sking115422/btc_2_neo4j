@@ -383,10 +383,10 @@ def createUnlockRel(sess, vin, tx_data):
     # Current tranaction id
     txid = str(tx_data["txid"])
 
-    cmd1 = "MATCH (a:tx) - [:out]-> (b:output) WHERE a.txid = '{0}' AND b.vout = '{1}' "
+    cmd1 = 'MATCH (a:tx) - [:out]-> (b:output) WHERE a.txid = "{0}" AND b.vout = "{1}" '
     cmd1 = cmd1.format(txid_in, vout, txid)
     
-    cmd2 = "MATCH (c:tx) WHERE id(c) = {0} "
+    cmd2 = 'MATCH (c:tx) WHERE c.txid = "{0}" '
     cmd2 = cmd2.format(txid) 
         
     cmd3 = "MERGE (b) - [r:unlock {scriptSig: '" + scriptSig_ + "'}] -> (c) RETURN r"
@@ -489,6 +489,7 @@ try:
     logger.debug("")
     logger.debug("STARTING IMPORT TO NEO4J")
     logger.debug("***********************************")
+    logger.debug("")
     
     # Iterating through each DAT file
     # testing loop below
@@ -502,16 +503,20 @@ try:
         
         df_start = a
         
-        logger.debug("")
-        logger.debug("loading > ./result/" + dat_list[a])
-        with open("./result/" + dat_list[a]) as bl:
+        dat_name = dat_list[a]
+        
+        logger.debug("loading > ./result/" + dat_name)
+        with open("./result/" + dat_name) as bl:
             bl_json = json.load(bl)
-        logger.debug("")
         
         # Iterating through the DAT file twice
         # First time (0) creates the nodes and some relationships
         # Second time (1) creates the backward linked relationships
         for t in range (iter_start, 2):
+            
+            start2 = time.time()
+            
+            logger.debug("ITERATION " + str(t) + " FOR " + dat_name + " STARTED")
             
             # Reset bn_start each time iteration is finished
             if t != iter_start:
@@ -527,7 +532,7 @@ try:
                 
                 bn_start = i
                 
-                start = time.time()
+                start1 = time.time()
                 
                 blk = bl_json[i]
                 tx_list = blk["tx"]
@@ -598,18 +603,20 @@ try:
                             if t == 1:
                                 createLockedRel(sess, scriptPK_hex, address)
                     
-                end = time.time()
+                end1 = time.time()
                 
-                diff = end - start
+                diff1 = end1 - start1
                 
                 if t == 0:
-                    logger.debug("")
-                    logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | node import complete > execution time : " + str(diff))
-                    logger.debug("") 
+                    logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | node import complete > execution time : " + str(diff1))
+                     
                 if t == 1: 
-                    logger.debug("")
-                    logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | relationships import complete > execution time : " + str(diff))
-                    logger.debug("") 
+                    logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | relationships import complete > execution time : " + str(diff1))
+                    
+            end2 = time.time()
+            diff2 = end2 - start2
+            
+            logger.debug("ITERATION " + str(t) + " FOR " + dat_name + " FINISHED > execution time : " + str(diff2))
 
     # Creating indexes
     createIndex(sess, "block", "hash")
