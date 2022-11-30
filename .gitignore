@@ -3,6 +3,7 @@ result
 venv
 .DS_Store
 checkpoint.json
+email_conf.json
 logs
 .ipynb_checkpoints
-*.json
+test_email.ipynb

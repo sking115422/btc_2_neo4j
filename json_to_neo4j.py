@@ -20,6 +20,9 @@ from datetime import datetime
 import pytz
 import time
 import logging
+import smtplib
+import ssl
+from email.message import EmailMessage
 
 
 # Logging
@@ -32,6 +35,22 @@ handler = logging.FileHandler('./logs/json_to_neo4j.log', mode='a+')
 formatter = logging.Formatter("%(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+
+# Emailing
+# This script can email you if there is an error while running or if it runs successfully to completion
+# If you wish to use this feature please set "emailMe" below to true
+emailMe = True
+
+email_conf = open("./email_conf.json")
+ec = json.load(email_conf)
+
+port = 465 # for SSL
+serv = "smtp.gmail.com"
+e_addr = ec["e_addr"]
+e_pass = ec["e_pass"] # This comes from an app pass in google account ~ link to article is here: https://leimao.github.io/blog/Python-Send-Gmail/
+from_ = e_addr
+to = e_addr
 
 
 def getTimeStamp ():
@@ -456,6 +475,28 @@ def deleteBlockNodes (sess, datFileNum, blkNum):
             
     sess.run(cmd1)
     
+    
+def sendEmail(port, serv, e_addr, e_pass, sub, from_, to, cont):
+    
+    port = port  
+    smtp_server = serv
+    sender_email = e_addr  
+    receiver_email = e_addr 
+    password = e_pass
+
+    msg = EmailMessage()
+    
+    msg['Subject'] = sub
+    msg['From'] = from_
+    msg['To'] = to
+    msg.set_content(cont)
+    
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:
+        server.login(sender_email, password)
+        server.send_message(msg, from_addr=sender_email, to_addrs=receiver_email)
+    
+    
 
 # Creating neo4j database driver and session
 # graph = Graph(uri='neo4j://localhost:7687', user="neo4j", password="password")
@@ -623,6 +664,11 @@ try:
     createIndex(sess, "tx", "txid")
     createIndex(sess, "address", "address")
     
+    err_sub = "BTC 2 NEO4J IMPORT COMPLETE"
+    err_msg = "The import is now complete!"
+    
+    sendEmail(port=port, serv=serv, e_addr=e_addr, e_pass=e_pass, sub=err_sub, from_=from_, to=to, cont=err_msg)
+    
     logger.debug("")
     logger.debug("***********************************")
     logger.debug("FINISHED IMPORT TO NEO4J")
@@ -643,11 +689,19 @@ except:
     with open("checkpoint.json", "w") as outfile:
         outfile.write(tmp)
         
+    fail_str = getTimeStamp() + " IMPORT EXITED EARLY > Dat file : " + str(df_start) + " > iter : " + str(iter_start) + " > blk num : " + str(bn_start)
+    err = traceback.format_exc()
+        
     logger.debug("")
-    logger.debug(getTimeStamp() + " IMPORT EXITED EARLY > Dat file : " + str(df_start) + " > iter : " + str(iter_start) + " > blk num : " + str(bn_start))
+    logger.debug(fail_str)
     logger.debug("")
-    logger.debug(traceback.format_exc())
+    logger.debug(err)
     logger.debug("")
+    
+    err_sub = "BTC 2 NEO4J IMPORT ERROR"
+    err_msg = fail_str + "\n\n" + err
+    
+    sendEmail(port=port, serv=serv, e_addr=e_addr, e_pass=e_pass, sub=err_sub, from_=from_, to=to, cont=err_msg)
     
     print(traceback.format_exc())
         
