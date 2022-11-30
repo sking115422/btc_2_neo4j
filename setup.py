@@ -34,6 +34,20 @@ if not os.path.exists("./checkpoint.json"):
     with open("checkpoint.json", "w+") as outfile:
         outfile.write(tmp)
         
+### CREATING EMAIL CONFIG FILE
+
+# Creating dictionary of initial values
+ec = {
+    "e_addr": "<insert_email_here>",
+    "e_pass": "<insert_pass_here>"
+}
+
+# Writing initial values to checkpoint.json file
+tmp = json.dumps(ec, indent=4)
+if not os.path.exists("./email_conf.json"):
+    with open("email_conf.json", "w+") as outfile:
+        outfile.write(tmp)
+        
 ### CREATING VIRTUAL ENVIRONMENT
 
 # Determining OS type 

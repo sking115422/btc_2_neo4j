@@ -664,10 +664,10 @@ try:
     createIndex(sess, "tx", "txid")
     createIndex(sess, "address", "address")
     
-    err_sub = "BTC 2 NEO4J IMPORT COMPLETE"
-    err_msg = "The import is now complete!"
-    
-    sendEmail(port=port, serv=serv, e_addr=e_addr, e_pass=e_pass, sub=err_sub, from_=from_, to=to, cont=err_msg)
+    if emailMe:
+        err_sub = "BTC 2 NEO4J IMPORT COMPLETE"
+        err_msg = "The import is now complete!"
+        sendEmail(port=port, serv=serv, e_addr=e_addr, e_pass=e_pass, sub=err_sub, from_=from_, to=to, cont=err_msg)
     
     logger.debug("")
     logger.debug("***********************************")
@@ -698,10 +698,10 @@ except:
     logger.debug(err)
     logger.debug("")
     
-    err_sub = "BTC 2 NEO4J IMPORT ERROR"
-    err_msg = fail_str + "\n\n" + err
-    
-    sendEmail(port=port, serv=serv, e_addr=e_addr, e_pass=e_pass, sub=err_sub, from_=from_, to=to, cont=err_msg)
+    if emailMe:
+        err_sub = "BTC 2 NEO4J IMPORT ERROR"
+        err_msg = fail_str + "\n\n" + err
+        sendEmail(port=port, serv=serv, e_addr=e_addr, e_pass=e_pass, sub=err_sub, from_=from_, to=to, cont=err_msg)
     
     print(traceback.format_exc())
         

@@ -57,9 +57,13 @@ Add desired BTCXXXXX.DAT files into blocks folder
 
 ## Import to Neo4J
 
-1. Run json_to_neo4j.py
-2. This will import all the json information into Neo4J
-3. Once finished open the browser in neo4j to interact with the BTC graph you have created
+1. If you want the script to email you in case of any error or upon completetion edit the email_conf.json file with your email and password. Also, set variable "emailMe" in json_to_neo4j.py to "True". It will be "False" by default. If you are planning on using Gmail, read the article in the following link for more information on how to setup the authentication so it will work with Gmail.
+
+[Setup Auth for Gmail](https://leimao.github.io/blog/Python-Send-Gmail/)
+   
+2. Run json_to_neo4j.py
+3. This will import all the json information into Neo4J
+4. Once finished open the browser in neo4j to interact with the BTC graph you have created
 
 ***!!!
 
