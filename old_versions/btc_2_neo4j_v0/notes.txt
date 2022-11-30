@@ -1,0 +1,9 @@
+TO DO:
+
+1. create if exists statement for indexes
+
+2. add in logger library to handle logging more efficiently
+
+2. create logic to impliment checkpointing in case of errors
+
+3. create script to load everything and make directories
