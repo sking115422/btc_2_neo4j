@@ -28,15 +28,22 @@ I obtained the files need by starting my own validation node for Bitcoin using B
 {
 
     "dat_file": 0,
-
     "iter": 0,
-
     "block_num": 0
 
 }
 
-5. Create and activate a virtual enviroment
-6. Use pip install -r requirements.txt to install needed libraries
+5. Create a json file called "email_conf.json" with the following content:
+
+{
+
+    "e_addr": <insert_email_address>,
+    "e_pass": <insert_password>
+
+}
+
+6. Create and activate a virtual enviroment
+7. Use pip install -r requirements.txt to install needed libraries
 
 *** NOTE replace requirements.txt with requirements_lin_mac.txt for linux or mac users and requirements_win.txt for windows users ***
 
@@ -72,9 +79,7 @@ NOTE: If the import terminates early due to an error or any other reason the pro
 {
 
     "dat_file": 0,
-
     "iter": 0,
-
     "block_num": 0
 
 }
