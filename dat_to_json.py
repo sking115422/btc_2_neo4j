@@ -7,9 +7,13 @@
 import os
 import datetime
 import hashlib
+import sys
 import json
 import gzip
 from cryptotools.BTC import decode_scriptpubkey
+
+# If this variable is set to true then the output block list (blocklist_#####.json) will be sorted chronologically
+sort = True
 
 def reverse(input):
     L = len(input)
@@ -293,6 +297,20 @@ for i in fList:
             print ('Merkle roots does not match! >',MerkleRoot,tmpHex)
         blockList.append(thisBlock)
     f.close()
+    
+    # Sorting implimentation
+    
+    if sort == True:
+        
+        def getTime(elem):
+            return int(elem["time"])
+
+        blockListSorted = sorted(blockList, key=getTime, reverse=False)
+        
+    # Printing datetime of first and last block in each dat file    
+    # print(datetime.datetime.utcfromtimestamp(blockListSorted[0]["time"]).strftime('%Y-%m-%d %H:%M:%S'))
+    # print(datetime.datetime.utcfromtimestamp(blockListSorted[-1]["time"]).strftime('%Y-%m-%d %H:%M:%S'))
+    
     with open(dirB + 'blocklist_' + blockFileNum + '.json','wt', encoding='ascii') as file:
         json.dump(blockList,file, indent=4)
 
