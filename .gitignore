@@ -11,5 +11,6 @@ logs
 
 checkpoint.json
 email_conf.json
+db_conf.json
 
 

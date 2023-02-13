@@ -60,8 +60,8 @@ def read_varint(file):
         data = b + data
     return data
 
-dirA = './blocks/' # Directory where blk*.dat files are stored
-dirB = './result/' # Directory to save parsing results
+dirA = '/mnt/d/Bitcoin_dat_files/' # Directory where blk*.dat files are stored
+dirB = '/mnt/d/btc_dat_json/' # Directory to save parsing results
 
 fList = os.listdir(dirA)
 fList = [x for x in fList if (x.endswith('.dat') and x.startswith('blk'))]
