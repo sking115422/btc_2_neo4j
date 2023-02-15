@@ -532,6 +532,10 @@ try:
     logger.debug("***********************************")
     logger.debug("")
     
+    ######
+    # Insert iteration loop here
+    ######
+    
     # Iterating through each DAT file
     # testing loop below
     # for a in range(0, 1):
