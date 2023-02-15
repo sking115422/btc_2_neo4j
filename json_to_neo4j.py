@@ -507,7 +507,7 @@ sess = dbc.session(database="neo4j")
 
 
 # Return lists of the DAT file jsons
-dat_list = sorted(os.listdir("./result/"))
+dat_list = sorted(os.listdir("/mnt/d/<name of file with all jsons>"))
 
 # Import checkpoint values 
 cp = open("./checkpoint.json")
