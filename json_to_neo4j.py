@@ -505,9 +505,10 @@ logger.debug("")
 logger.debug("Connected to Neo4J database : " + str(dbc))
 sess = dbc.session(database="neo4j")
 
+input_dir = "./result_test/"
 
 # Return lists of the DAT file jsons
-dat_list = sorted(os.listdir("/mnt/d/<name of file with all jsons>"))
+dat_list = sorted(os.listdir(input_dir))
 
 # Import checkpoint values 
 cp = open("./checkpoint.json")
@@ -528,140 +529,140 @@ if df_start != 0 or bn_start != 0:
 try:
     
     logger.debug("")
+    logger.debug("***********************************")
     logger.debug("STARTING IMPORT TO NEO4J")
     logger.debug("***********************************")
     logger.debug("")
     
-    ######
-    # Insert iteration loop here
-    ######
     
-    # Iterating through each DAT file
-    # testing loop below
-    # for a in range(0, 1):
-    for a in range(df_start, len(dat_list)):
+    # Iterating through the every DAT file twice
+    # First time (0) creates the nodes and some relationships
+    # Second time (1) creates the backward linked relationships
+    for t in range (iter_start, 2):
         
-        # Reset bn_start each time DAT file finished
-        if a != df_start:
-            bn_start = 0
-            iter_start = 0        
+        start2 = time.time()
         
-        df_start = a
+        logger.debug("ITERATION " + str(t) + " STARTED")
+        logger.debug("***********************************")
         
-        dat_name = dat_list[a]
-        
-        logger.debug("loading > ./result/" + dat_name)
-        with open("./result/" + dat_name) as bl:
-            bl_json = json.load(bl)
-        
-        # Iterating through the DAT file twice
-        # First time (0) creates the nodes and some relationships
-        # Second time (1) creates the backward linked relationships
-        for t in range (iter_start, 2):
+        # Reset bn_start each time iteration is finished
+        if t != iter_start:
+            bn_start = 0    
+            df_start = 0
             
-            start2 = time.time()
+        iter_start = t
+    
+        # Iterating through each DAT file
+        # testing loop below
+        # for a in range(0, 1):
+        for a in range(df_start, len(dat_list)):
             
-            logger.debug("ITERATION " + str(t) + " FOR " + dat_name + " STARTED")
+            # Reset bn_start each time DAT file finished
+            if a != df_start:
+                bn_start = 0
+                       
             
-            # Reset bn_start each time iteration is finished
-            if t != iter_start:
-                bn_start = 0    
+            df_start = a
             
-            iter_start = t
+            dat_name = dat_list[a]
+            
+            logger.debug("loading > " + input_dir + dat_name)
+            with open(input_dir + dat_name) as bl:
+                bl_json = json.load(bl)
 
-            #Iterate through all blocks in dat file
-            # testing loops below
-            # for i in range(len(bl_json)-5, len(bl_json)):    
-            # for i in range(0, 10):
-            for i in range(bn_start, len(bl_json)):
-                
-                bn_start = i
-                
-                start1 = time.time()
-                
-                blk = bl_json[i]
-                tx_list = blk["tx"]
-                
-                prevBlkHash = str(blk["previousblockhash"])
-                hash_ = str(blk["hash"])
-                
-                n4j_blk_id = None
-                if t == 0:
-                    n4j_blk_id = createBlockNode(sess, blk, df_start, bn_start)
-
-                if t == 1:
-                    # If block is the not the first block create chain relationship
-                    if prevBlkHash != "0000000000000000000000000000000000000000000000000000000000000000":
-                        createChainRel(sess, prevBlkHash, hash_)
-                
-                #Iterating through each transaction associated with the current block
-                for j in range(0, len(tx_list)):
-                # for j in range(0,1):
+                #Iterate through all blocks in single dat file
+                # testing loops below
+                # for i in range(len(bl_json)-5, len(bl_json)):    
+                # for i in range(0, 10):
+                for i in range(bn_start, len(bl_json)):
                     
-                    tx_data = tx_list[j]
+                    bn_start = i
                     
-                    # Creating transaction node and includes relationship
-                    n4j_tx_id = None
+                    start1 = time.time()
+                    
+                    blk = bl_json[i]
+                    tx_list = blk["tx"]
+                    
+                    prevBlkHash = str(blk["previousblockhash"])
+                    hash_ = str(blk["hash"])
+                    
+                    n4j_blk_id = None
                     if t == 0:
-                        n4j_tx_id = createTxNode(sess, tx_data, df_start, bn_start)
-                        createIncludesRel(sess, n4j_tx_id, n4j_blk_id)
+                        n4j_blk_id = createBlockNode(sess, blk, df_start, bn_start)
+
+                    if t == 1:
+                        # If block is the not the first block create chain relationship
+                        if prevBlkHash != "0000000000000000000000000000000000000000000000000000000000000000":
+                            createChainRel(sess, prevBlkHash, hash_)
                     
-                    # Iterate through vin list in transaction
-                    for each in tx_data["vin"]:
+                    #Iterating through each transaction associated with the current block
+                    for j in range(0, len(tx_list)):
+                    # for j in range(0,1):
                         
-                        # If it is the first transaction create coinbase node, reward relationship, and seeds relationship
-                        txid_in = str(each["txid"])
-                        if txid_in == "0000000000000000000000000000000000000000000000000000000000000000":
-                            if t == 0:
-                                n4j_cb_id = createCoinbaseNode(sess, tx_data, df_start, bn_start)
-                                createRewardRel(sess, n4j_blk_id, n4j_cb_id)
-                                createSeedsRel(sess, n4j_cb_id, n4j_tx_id)
-                            exit
-                            
-                        # Otherwise create the unlock relationship
-                        else:
-                            if t == 1:
-                                createUnlockRel(sess, each, tx_data)
-                    
-                    # Iterate through outputs for each transaction
-                    outputs = tx_data["vout"]
-                    for z in range(0, len(outputs)):
+                        tx_data = tx_list[j]
                         
-                        # Creating output node 
-                        n4j_out_id = None
+                        # Creating transaction node and includes relationship
+                        n4j_tx_id = None
                         if t == 0:
-                            n4j_out_id = createOutputNode(sess, outputs[z], z, df_start, bn_start)
-                            createOutRel(sess, n4j_tx_id, n4j_out_id)
+                            n4j_tx_id = createTxNode(sess, tx_data, df_start, bn_start)
+                            createIncludesRel(sess, n4j_tx_id, n4j_blk_id)
                         
-                        scriptPK_hex = str(outputs[z]["scriptPubKey"]["hex"])
-                        
-                        try:
-                            address = str(outputs[z]["scriptPubKey"]["address"])
-                        except:
-                            address = "N/A"
+                        # Iterate through vin list in transaction
+                        for each in tx_data["vin"]:
                             
-                        # Create address node if it does not exist and locked relationship to an address (might be address just created might not)    
-                        if address != "N/A":
-                            n4j_addr_id = None
+                            # If it is the first transaction create coinbase node, reward relationship, and seeds relationship
+                            txid_in = str(each["txid"])
+                            if txid_in == "0000000000000000000000000000000000000000000000000000000000000000":
+                                if t == 0:
+                                    n4j_cb_id = createCoinbaseNode(sess, tx_data, df_start, bn_start)
+                                    createRewardRel(sess, n4j_blk_id, n4j_cb_id)
+                                    createSeedsRel(sess, n4j_cb_id, n4j_tx_id)
+                                exit
+                                
+                            # Otherwise create the unlock relationship
+                            else:
+                                if t == 1:
+                                    createUnlockRel(sess, each, tx_data)
+                        
+                        # Iterate through outputs for each transaction
+                        outputs = tx_data["vout"]
+                        for z in range(0, len(outputs)):
+                            
+                            # Creating output node 
+                            n4j_out_id = None
                             if t == 0:
-                                n4j_addr_id = createAddressNode(sess, address, df_start, bn_start)
-                            if t == 1:
-                                createLockedRel(sess, scriptPK_hex, address)
+                                n4j_out_id = createOutputNode(sess, outputs[z], z, df_start, bn_start)
+                                createOutRel(sess, n4j_tx_id, n4j_out_id)
+                            
+                            scriptPK_hex = str(outputs[z]["scriptPubKey"]["hex"])
+                            
+                            try:
+                                address = str(outputs[z]["scriptPubKey"]["address"])
+                            except:
+                                address = "N/A"
+                                
+                            # Create address node if it does not exist and locked relationship to an address (might be address just created might not)    
+                            if address != "N/A":
+                                n4j_addr_id = None
+                                if t == 0:
+                                    n4j_addr_id = createAddressNode(sess, address, df_start, bn_start)
+                                # if t == 1:
+                                    createLockedRel(sess, scriptPK_hex, address)
+                        
+                    end1 = time.time()
                     
-                end1 = time.time()
-                
-                diff1 = end1 - start1
-                
-                if t == 0:
-                    logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | node import complete > execution time : " + str(diff1))
-                     
-                if t == 1: 
-                    logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | relationships import complete > execution time : " + str(diff1))
+                    diff1 = end1 - start1
                     
-            end2 = time.time()
-            diff2 = end2 - start2
-            
-            logger.debug("ITERATION " + str(t) + " FOR " + dat_name + " FINISHED > execution time : " + str(diff2))
+                    if t == 0:
+                        logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | node import complete > execution time : " + str(diff1))
+                        
+                    if t == 1: 
+                        logger.debug(getTimeStamp() + " DAT file : " + str(df_start) + " > block: " + str(bn_start) + " | relationships import complete > execution time : " + str(diff1))
+                        
+                end2 = time.time()
+                diff2 = end2 - start2
+                
+                logger.debug("ITERATION " + str(t) + " FOR " + dat_name + " FINISHED > execution time : " + str(diff2))
 
     # Creating indexes
     createIndex(sess, "block", "hash")
@@ -676,6 +677,7 @@ try:
     logger.debug("")
     logger.debug("***********************************")
     logger.debug("FINISHED IMPORT TO NEO4J")
+    logger.debug("***********************************")
 
     # Closing session
     sess.close()
