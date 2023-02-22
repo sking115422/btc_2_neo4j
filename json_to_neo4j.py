@@ -6,7 +6,14 @@
 # Command to run
 # json_to_neo4j.py
 
-# 25% of DAT file > ~ 125000 node > ~150000 relationships > in ~ 2 hours
+### NOTES
+
+# Non parallelized code > 25% of DAT file > ~ 125000 node > ~150000 relationships > in ~ 2 hours
+
+# Bitcoin Owned By An Address
+# Can be calculated by summing all outputs locked to an address with an out-degree of 0. 
+# In other words if an output has an out going relationship it means that is has been unlocked for use in another transaction.
+# Its link to the address is no longer valid.
 
 # Importing libraries
 from neo4j import GraphDatabase
